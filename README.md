@@ -1,2 +1,2 @@
-# NASA-Solar-Flare-Collector
+# NASA-Solar-Collector
 Collect Solar Flare Using NASA API
