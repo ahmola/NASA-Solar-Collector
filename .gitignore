@@ -1,0 +1,6 @@
+### env file
+*.env
+
+### n8n data
+*.json
+n8n_data/
