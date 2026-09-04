@@ -1,0 +1,51 @@
+services:
+  # LLM Engine
+  ollama:
+    image: ollama/ollama:latest
+    container_name: local-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    # GPU config
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # MCP
+  mcp-server:
+    build: ./mcp-server
+    container_name: mcp-server
+    ports:
+      - "8000:8000"
+
+  # AI Agent
+  hermes-agent:
+    build: ./hermes-agent
+    container_name: hermes-agent
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - MCP_SERVER_URL=http://mcp-server:8000
+    volumes:
+      - ./workspace:/app/workspace
+    depends_on:
+      - ollama
+      - mcp-server
+
+  # Web UI
+  agent-gui:
+    build: ./frontend
+    container_name: agent-gui
+    ports:
+      - "3000:3000"
+    environment:
+      - AGENT_API_URL=http://hermes-agent:5000
+    depends_on:
+      - hermes-agent
+
+volumes:
+  ollama_data:
