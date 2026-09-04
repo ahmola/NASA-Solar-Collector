@@ -7,6 +7,8 @@ services:
       - ollama_data:/root/.ollama
     ports:
       - "11434:11434"
+    networks:
+      - solar-network
     # GPU config
     deploy:
       resources:
@@ -15,29 +17,60 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+  
+  # PostgreSQL
+  database:
+    image: postgresql:latest
+    container_name: postgresql
+    volumes: 
+      - db_data
+    ports:
+      - "5432:5432"
+    networks:
+      - solar-network
 
+  # n8n workflow, the actual backend service
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    volumes:
+      - n8n_config
+    ports:
+      - "5678:5678"
+    depends_on:
+      - database
+    networks:
+      -solar-network
+  
   # MCP
   mcp-server:
     build: ./mcp-server
     container_name: mcp-server
     ports:
       - "8000:8000"
+    depends_on:
+      - n8n
+    networks:
+      - solar-network
 
   # AI Agent
   hermes-agent:
     image: nousresearch/hermes-agent:latest
     container_name: hermes-agent
+    stdin_open: true
+    tty: true
     restart: unless-stopped
     ports:
       - "8642:8642"
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
-      - MCP_SERVER_URL=http://mcp-server:8000
     volumes:
-      - ./hermes:/app/hermes
+      - hermes_config:/opt/data
     depends_on:
       - ollama
       - mcp-server
+    networks:
+      - solar-network
 
   # Web UI
   agent-gui:
@@ -49,6 +82,15 @@ services:
       - AGENT_API_URL=http://hermes-agent:8642
     depends_on:
       - hermes-agent
+    networks:
+      - solar-network
+
+networks:
+  solar-network:
+    driver: bridge
 
 volumes:
   ollama_data:
+  db_data:
+  n8n_config:
+  hermes_config:
